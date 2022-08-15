@@ -34,7 +34,7 @@ public class UdonActionEditor : Editor
             true, true, true, true);
         
         list.drawHeaderCallback = (rect) =>
-            EditorGUI.LabelField (rect, "U# Event");
+            EditorGUI.LabelField (rect, Target.name);
         
         list.elementHeight = 80; 
 
@@ -66,23 +66,20 @@ public class UdonActionEditor : Editor
             j++;
         }
         
-        // Element 가 그려질 때 Callback
         list.drawElementCallback =
             (Rect rect, int index, bool isActive, bool isFocused) => {
                 
-                // 현재 그려질 요소
                 SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
-                rect.y += 2; // 위쪽 패딩
 
 
                 EditorGUI.BeginChangeCheck();
                 
                 Target.ActionType[index] = (int)(EditorActionType)EditorGUI.EnumPopup(
-                    new Rect(rect.x, rect.y, 100, EditorGUIUtility.singleLineHeight)
+                    new Rect(rect.x, rect.y, 150, EditorGUIUtility.singleLineHeight)
                     , (EditorActionType)Target.ActionType[index]);
                 
                 EditorGUI.PropertyField(
-                    new Rect(rect.x + 130, rect.y, rect.width - 130 - 30, EditorGUIUtility.singleLineHeight),
+                    new Rect(rect.x + 180, rect.y, rect.width - 130 - 50, EditorGUIUtility.singleLineHeight),
                     element, GUIContent.none);
                 
                 if (EditorGUI.EndChangeCheck())
@@ -105,10 +102,21 @@ public class UdonActionEditor : Editor
 
                     else enumerators[index] = CreateEnum(new List<string>(){"None"});
                 }
-                
+
+                if (Target.ActionType[index] == 0)
+                {
+                    Target.IsSynced[index] = GUI.Toggle(
+                        new Rect(rect.x, rect.y + 25, 200, EditorGUIUtility.singleLineHeight),
+                        Target.IsSynced[index], "  Is Synced");
+
+                    Target.TransferOfOwnership[index] = GUI.Toggle(
+                        new Rect(rect.x, rect.y + 50, 200, EditorGUIUtility.singleLineHeight),
+                        Target.TransferOfOwnership[index], "  Transfer of ownership");
+                }
+
                 EditorGUI.BeginChangeCheck();
                 enumerators[index] = EditorGUI.EnumPopup(
-                    new Rect(rect.x + 130, rect.y + 25, rect.width - 130 - 30, EditorGUIUtility.singleLineHeight),
+                    new Rect(rect.x + 180, rect.y + 25, rect.width - 130 - 50, EditorGUIUtility.singleLineHeight),
                     enumerators[index]);
                 if (EditorGUI.EndChangeCheck())
                 {
@@ -121,7 +129,7 @@ public class UdonActionEditor : Editor
                 }
                 
                 if(Target.ActionType[index] == 1) Target.Value[index] = EditorGUI.FloatField(
-                    new Rect(rect.x + 130, rect.y + 50, rect.width - 130 - 30, EditorGUIUtility.singleLineHeight),
+                    new Rect(rect.x + 180, rect.y + 50, rect.width - 130 - 50, EditorGUIUtility.singleLineHeight),
                     Target.Value[index]);
             };
 
