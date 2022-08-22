@@ -5,9 +5,15 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
+using K13A.USharpAction.Editor;
+using UdonSharp;
+using UdonSharpEditor;
+using VRC.SDKBase;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using VRC.Udon;
+using Object = UnityEngine.Object;
 
 
 [CustomEditor(typeof(UdonAction))]
@@ -15,163 +21,110 @@ public class UdonActionEditor : Editor
 {
     private ReorderableList list;
 
-    enum EditorActionType : int
-    {
-        Function = 0,
-        Variable = 1
-    }
-    
-    public List<Enum> enumerators = new List<Enum>();
-
     public UdonAction Target;
+
+    public List<UdonEvent> UdonEvents = new List<UdonEvent>();
     
     private void OnEnable()
     {
         Target = (UdonAction) target;
-        
-        list = new ReorderableList(serializedObject,
-            serializedObject.FindProperty("Behaviours"),
+
+        var j = 0;
+        foreach (var objectName in Target.Behaviours)
+        {
+            var udonEvent = new UdonEvent();
+            udonEvent.ActionType = Target.ActionType[j];
+            udonEvent.Behaviour = Target.Behaviours[j];
+            udonEvent.ObjectName = Target.ObjectNames[j];
+            udonEvent.Value = Target.Value[j];
+            udonEvent.IsSynced = Target.IsSynced[j];
+            udonEvent.TransferOfOwnership = Target.TransferOfOwnership[j];
+            
+            udonEvent.UpdateExecutables();
+            UdonEvents.Add(udonEvent);
+            j++;
+        }
+
+        list = new ReorderableList(UdonEvents, typeof(UdonEvent),
             true, true, true, true);
         
         list.drawHeaderCallback = (rect) =>
             EditorGUI.LabelField (rect, Target.name);
         
-        list.elementHeight = 80; 
+        list.elementHeight = 80;
 
-        enumerators = new List<Enum>(){};
-        var j = 0;
-        foreach (var objectName in Target.ObjectNames)
-        {
-            if (Target.Behaviours[j] != null) 
-            {
-                switch (Target.ActionType[j])
-                {
-                    case 0: // Invoke Function
-                        enumerators.Add(CreateEnum(Target.Behaviours[j].GetType().GetMethods()
-                            .Select((x) => x.Name).ToList()));
-                        break;
-                    case 1: // Set Value
-                        enumerators.Add(CreateEnum(Target.Behaviours[j].GetType().GetFields()
-                            .Select((x) => x.Name).ToList()));
-                        break; 
-                }
-                
-                if(objectName == "None" || String.IsNullOrEmpty(objectName) || String.IsNullOrWhiteSpace(objectName))
-                    enumerators[j] = (Enum)System.Enum.ToObject(enumerators[j].GetType(),0);
-                else 
-                    enumerators[j] = (Enum)System.Enum.ToObject(enumerators[j].GetType(),Enum.GetNames(enumerators[j].GetType()).ToList().IndexOf(objectName));
-            }
-            else 
-                enumerators.Add(CreateEnum(new List<string>(){"None"}));
-            j++;
-        }
-        
         list.drawElementCallback =
             (Rect rect, int index, bool isActive, bool isFocused) => {
-                
-                SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
-
-
-                EditorGUI.BeginChangeCheck();
-                
-                Target.ActionType[index] = (int)(EditorActionType)EditorGUI.EnumPopup(
-                    new Rect(rect.x, rect.y, 150, EditorGUIUtility.singleLineHeight)
-                    , (EditorActionType)Target.ActionType[index]);
-                
-                EditorGUI.PropertyField(
-                    new Rect(rect.x + 180, rect.y, rect.width - 130 - 50, EditorGUIUtility.singleLineHeight),
-                    element, GUIContent.none);
-                
-                if (EditorGUI.EndChangeCheck())
-                {
-                    serializedObject.ApplyModifiedProperties();
-                    if (Target.Behaviours[index] != null)
-                    {
-                        switch (Target.ActionType[index])
-                        {
-                            case 0: // Invoke Function
-                                enumerators[index] = CreateEnum(Target.Behaviours[index].GetType().GetMethods()
-                                    .Select((x) => x.Name).ToList());
-                                break;
-                            case 1: // Set Value
-                                enumerators[index] = CreateEnum(Target.Behaviours[index].GetType().GetFields()
-                                    .Select((x) => x.Name).ToList());
-                                break;
-                        }
-                    }
-
-                    else enumerators[index] = CreateEnum(new List<string>(){"None"});
-                }
-
-                if (Target.ActionType[index] == 0)
-                {
-                    Target.IsSynced[index] = GUI.Toggle(
-                        new Rect(rect.x, rect.y + 25, 200, EditorGUIUtility.singleLineHeight),
-                        Target.IsSynced[index], "  Is Synced");
-
-                    Target.TransferOfOwnership[index] = GUI.Toggle(
-                        new Rect(rect.x, rect.y + 50, 200, EditorGUIUtility.singleLineHeight),
-                        Target.TransferOfOwnership[index], "  Transfer of ownership");
-                }
-
-                EditorGUI.BeginChangeCheck();
-                enumerators[index] = EditorGUI.EnumPopup(
-                    new Rect(rect.x + 180, rect.y + 25, rect.width - 130 - 50, EditorGUIUtility.singleLineHeight),
-                    enumerators[index]);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    var i = 0;
-                    foreach (var enumerator in enumerators)
-                    {
-                        Target.ObjectNames[i] = enumerator.ToString();
-                        i++;
-                    }
-                }
-                
-                if(Target.ActionType[index] == 1) Target.Value[index] = EditorGUI.FloatField(
-                    new Rect(rect.x + 180, rect.y + 50, rect.width - 130 - 50, EditorGUIUtility.singleLineHeight),
-                    Target.Value[index]);
+                UdonEventEditor.DrawEvent(rect, UdonEvents[index]);
             };
-
-        list.onAddCallback = reorderableList =>
-        {
-            Target.AddFunction(null, "");
-            enumerators.Add(CreateEnum(new List<string>() {"None"}));
-        };
     }
 
     private void Reset()
     {
-        enumerators = new List<Enum>() { CreateEnum(new List<string>(){"None"}) };
+        UdonEvents.Clear();
     }
 
-    public static System.Enum CreateEnum(List<string> list){
+    public void SaveToAction()
+    {
+        List<int> ActionType = new List<int>();
+        List<UdonSharpBehaviour> Behaviours = new List<UdonSharpBehaviour>();
+        List<string> ObjectNames = new List<string>();
+        List<object> Value = new List<object>();
+        List<bool> IsSynced = new List<bool>();
+        List<bool> TransferOfOwnership = new List<bool>();
 
-        System.AppDomain currentDomain = System.AppDomain.CurrentDomain;
-        AssemblyName aName = new AssemblyName("Enum");
-        AssemblyBuilder ab = currentDomain.DefineDynamicAssembly(aName, AssemblyBuilderAccess.Run);
-        ModuleBuilder mb = ab.DefineDynamicModule(aName.Name);
-        EnumBuilder enumerator = mb.DefineEnum("Enum", TypeAttributes.Public, typeof(int));
-
-        int i = 0;
-        enumerator.DefineLiteral("None", i); //Here = enum{ None }
-
-        foreach(string names in list){
-            i++;
-            enumerator.DefineLiteral(names, i);
+        foreach (var udonEvent in UdonEvents)
+        {
+            ActionType.Add(udonEvent.ActionType);
+            Behaviours.Add(udonEvent.Behaviour);
+            ObjectNames.Add(udonEvent.ObjectName);
+            Value.Add(udonEvent.Value);
+            IsSynced.Add(udonEvent.IsSynced);
+            TransferOfOwnership.Add(udonEvent.TransferOfOwnership);
         }
 
-//Here = enum { None, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday }
-
-        System.Type finished = enumerator.CreateType();
-
-        return (System.Enum)System.Enum.ToObject(finished,0);
+        Target.ActionType = ActionType.ToArray();
+        Target.Behaviours = Behaviours.ToArray();
+        Target.ObjectNames = ObjectNames.ToArray();
+        Target.Value = Value.ToArray();
+        Target.IsSynced = IsSynced.ToArray();
+        Target.TransferOfOwnership = TransferOfOwnership.ToArray();
     }
 
     public override void OnInspectorGUI()
     {
-        serializedObject.Update();
+        EditorGUILayout.Space(10);
         list.DoLayoutList();
-        serializedObject.ApplyModifiedProperties();
+        SaveToAction();
+    }
+}
+
+public static class SyncedModeEvent
+{
+    public static Networking.SyncType syncType;
+}
+
+[CustomPropertyDrawer(typeof(UdonAction))]
+public class UdonActionPropertyEditor : PropertyDrawer
+{
+    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+    {
+        if (!property.objectReferenceValue)
+        {
+            var action = ((UdonSharpBehaviour) property.serializedObject.targetObject).gameObject.AddComponent<UdonAction>();
+            action.name = label.text;
+            property.objectReferenceValue = action;
+        }
+        else
+        {
+
+            if (UdonSharpEditorUtility.GetBackingUdonBehaviour(((UdonSharpBehaviour) property.serializedObject.targetObject)).SyncIsContinuous)
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(((UdonSharpBehaviour) property.objectReferenceValue)).SyncMethod = Networking.SyncType.Continuous;
+            else if (UdonSharpEditorUtility.GetBackingUdonBehaviour(((UdonSharpBehaviour) property.serializedObject.targetObject)).SyncIsManual)
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(((UdonSharpBehaviour) property.objectReferenceValue)).SyncMethod = Networking.SyncType.Manual;
+            else 
+                UdonSharpEditorUtility.GetBackingUdonBehaviour(((UdonSharpBehaviour) property.objectReferenceValue)).SyncMethod = Networking.SyncType.None;
+            EditorGUI.PropertyField(position, property);
+        }
     }
 }

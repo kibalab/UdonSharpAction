@@ -6,15 +6,12 @@ using VRC.Udon;
 
 public class Test : UdonSharpBehaviour
 {
-    public float Testfloat1 = 0.1f;
-    
-    void Start()
-    {
-        
-    }
+    public string Variable2 = "Hello, World!";
+    public Vector4 Variavble1;
+    public Material mat;
 
-    public void Test1()
+    public void Red()
     {
-        
+        mat.color = Color.red;
     }
 }

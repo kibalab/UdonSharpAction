@@ -12,7 +12,7 @@ public class UdonAction : UdonSharpBehaviour
     public int[] ActionType = {0};
     public UdonSharpBehaviour[] Behaviours = { null };
     public string[] ObjectNames = {""};
-    public float[] Value = { .0f };
+    public object[] Value = { null };
     public bool[] IsSynced = {false};
     public bool[] TransferOfOwnership = {false};
 
@@ -21,6 +21,12 @@ public class UdonAction : UdonSharpBehaviour
         for (var i = 0; i < Behaviours.Length; i++)
         {
             var behaviour = Behaviours[i];
+            if (ActionType == null || behaviour == null || ObjectNames == null || Value == null || IsSynced == null ||
+                TransferOfOwnership == null || ObjectNames[i] == "None")
+            {
+                Debug.LogError($"[{name}] Event is NULL!");
+                continue;
+            }
             
             switch (ActionType[i])
             {
@@ -78,9 +84,9 @@ public class UdonAction : UdonSharpBehaviour
         return newArray;
     }
     
-    public float[] AddToValue(float[] array, float newObject)
+    public object[] AddToValue(object[] array, object newObject)
     {
-        float[] newArray = new float[array.Length + 1];
+        object[] newArray = new object[array.Length + 1];
         for (var i = 0; i < array.Length; i++)
         {
             newArray[i] = array[i];
@@ -115,7 +121,7 @@ public class UdonAction : UdonSharpBehaviour
         TransferOfOwnership = AddToBool(TransferOfOwnership, false);
     }
     
-    public void AddValue(UdonSharpBehaviour behaviour, string VariableName, float value)
+    public void AddValue(UdonSharpBehaviour behaviour, string VariableName, object value)
     {
         ActionType = AddToActionType(ActionType, 1);
         Behaviours = AddToActionType(Behaviours, behaviour);
@@ -123,5 +129,10 @@ public class UdonAction : UdonSharpBehaviour
         Value = AddToValue(Value, value);
         IsSynced = AddToBool(IsSynced, false);
         TransferOfOwnership = AddToBool(TransferOfOwnership, false);
+    }
+
+    public void IgnoreEvent(int index)
+    {
+        Behaviours[index] = null;
     }
 }
