@@ -5,134 +5,140 @@ using VRC.SDKBase;
 using VRC.Udon;
 using VRC.Udon.Common.Interfaces;
 
-public class UdonAction : UdonSharpBehaviour
+namespace K13A.USharpAction
 {
-    public string name = "UdonSharp Event Action";
-    
-    public int[] ActionType = {0};
-    public UdonSharpBehaviour[] Behaviours = { null };
-    public string[] ObjectNames = {""};
-    public object[] Value = { null };
-    public bool[] IsSynced = {false};
-    public bool[] TransferOfOwnership = {false};
-
-    public void Invoke()
+    public class UdonAction : UdonSharpBehaviour
     {
-        for (var i = 0; i < Behaviours.Length; i++)
+        public string name = "UdonSharp Event Action";
+
+        public int[] ActionType = {0};
+        public UdonSharpBehaviour[] Behaviours = {null};
+        public string[] ObjectNames = {""};
+        public object[] Value = {null};
+        public bool[] IsSynced = {false};
+        public bool[] TransferOfOwnership = {false};
+
+        public void Invoke()
         {
-            var behaviour = Behaviours[i];
-            if (ActionType == null || behaviour == null || ObjectNames == null || Value == null || IsSynced == null ||
-                TransferOfOwnership == null || ObjectNames[i] == "None")
+            for (var i = 0; i < Behaviours.Length; i++)
             {
-                Debug.LogError($"[{name}] Event is NULL!");
-                continue;
+                var behaviour = Behaviours[i];
+                if (ActionType == null || behaviour == null || ObjectNames == null || Value == null ||
+                    IsSynced == null ||
+                    TransferOfOwnership == null || ObjectNames[i] == "None")
+                {
+                    Debug.LogError($"[{name}] Event is NULL!");
+                    continue;
+                }
+
+                switch (ActionType[i])
+                {
+                    case 0: // Invoke Function
+                        if (IsSynced[i])
+                        {
+                            if (TransferOfOwnership[i])
+                                Networking.SetOwner(Networking.LocalPlayer, behaviour.gameObject);
+                            behaviour.SendCustomNetworkEvent(NetworkEventTarget.All, ObjectNames[i]);
+                        }
+                        else behaviour.SendCustomEvent(ObjectNames[i]);
+
+                        break;
+                    case 1: // Set Value
+                        behaviour.SetProgramVariable(ObjectNames[i], Value[i]);
+                        break;
+                }
             }
-            
-            switch (ActionType[i])
+        }
+
+        public int[] AddToActionType(int[] array, int newObject)
+        {
+            int[] newArray = new int[array.Length + 1];
+            for (var i = 0; i < array.Length; i++)
             {
-                case 0 : // Invoke Function
-                    if (IsSynced[i])
-                    {
-                        if (TransferOfOwnership[i]) Networking.SetOwner(Networking.LocalPlayer, behaviour.gameObject);
-                        behaviour.SendCustomNetworkEvent(NetworkEventTarget.All, ObjectNames[i]);
-                    }
-                    else behaviour.SendCustomEvent(ObjectNames[i]);
-                    break;
-                case 1 : // Set Value
-                    behaviour.SetProgramVariable(ObjectNames[i], Value[i]);
-                    break;
+                newArray[i] = array[i];
             }
-        }
-    }
 
-    public int[] AddToActionType(int[] array, int newObject)
-    {
-        int[] newArray = new int[array.Length + 1];
-        for (var i = 0; i < array.Length; i++)
+            newArray[array.Length] = newObject;
+
+            return newArray;
+        }
+
+        public UdonSharpBehaviour[] AddToActionType(UdonSharpBehaviour[] array, UdonSharpBehaviour newObject)
         {
-            newArray[i] = array[i];
+            UdonSharpBehaviour[] newArray = new UdonSharpBehaviour[array.Length + 1];
+            for (var i = 0; i < array.Length; i++)
+            {
+                newArray[i] = array[i];
+            }
+
+            newArray[array.Length] = newObject;
+
+            return newArray;
         }
 
-        newArray[array.Length] = newObject;
-
-        return newArray;
-    }
-    
-    public UdonSharpBehaviour[] AddToActionType(UdonSharpBehaviour[] array, UdonSharpBehaviour newObject)
-    {
-        UdonSharpBehaviour[] newArray = new UdonSharpBehaviour[array.Length + 1];
-        for (var i = 0; i < array.Length; i++)
+        public string[] AddToObjectNames(string[] array, string newObject)
         {
-            newArray[i] = array[i];
+            string[] newArray = new string[array.Length + 1];
+            for (var i = 0; i < array.Length; i++)
+            {
+                newArray[i] = array[i];
+            }
+
+            newArray[array.Length] = newObject;
+
+            return newArray;
         }
 
-        newArray[array.Length] = newObject;
-
-        return newArray;
-    }
-    
-    public string[] AddToObjectNames(string[] array, string newObject)
-    {
-        string[] newArray = new string[array.Length + 1];
-        for (var i = 0; i < array.Length; i++)
+        public object[] AddToValue(object[] array, object newObject)
         {
-            newArray[i] = array[i];
+            object[] newArray = new object[array.Length + 1];
+            for (var i = 0; i < array.Length; i++)
+            {
+                newArray[i] = array[i];
+            }
+
+            newArray[array.Length] = newObject;
+
+            return newArray;
         }
 
-        newArray[array.Length] = newObject;
-
-        return newArray;
-    }
-    
-    public object[] AddToValue(object[] array, object newObject)
-    {
-        object[] newArray = new object[array.Length + 1];
-        for (var i = 0; i < array.Length; i++)
+        public bool[] AddToBool(bool[] array, bool newObject)
         {
-            newArray[i] = array[i];
+            bool[] newArray = new bool[array.Length + 1];
+            for (var i = 0; i < array.Length; i++)
+            {
+                newArray[i] = array[i];
+            }
+
+            newArray[array.Length] = newObject;
+
+            return newArray;
         }
 
-        newArray[array.Length] = newObject;
 
-        return newArray;
-    }
-    
-    public bool[] AddToBool(bool[] array, bool newObject)
-    {
-        bool[] newArray = new bool[array.Length + 1];
-        for (var i = 0; i < array.Length; i++)
+        public void AddFunction(UdonSharpBehaviour behaviour, string functionName)
         {
-            newArray[i] = array[i];
+            ActionType = AddToActionType(ActionType, 0);
+            Behaviours = AddToActionType(Behaviours, behaviour);
+            ObjectNames = AddToObjectNames(ObjectNames, functionName);
+            Value = AddToValue(Value, .0f);
+            IsSynced = AddToBool(IsSynced, false);
+            TransferOfOwnership = AddToBool(TransferOfOwnership, false);
         }
 
-        newArray[array.Length] = newObject;
+        public void AddValue(UdonSharpBehaviour behaviour, string VariableName, object value)
+        {
+            ActionType = AddToActionType(ActionType, 1);
+            Behaviours = AddToActionType(Behaviours, behaviour);
+            ObjectNames = AddToObjectNames(ObjectNames, VariableName);
+            Value = AddToValue(Value, value);
+            IsSynced = AddToBool(IsSynced, false);
+            TransferOfOwnership = AddToBool(TransferOfOwnership, false);
+        }
 
-        return newArray;
-    }
-    
-
-    public void AddFunction(UdonSharpBehaviour behaviour, string functionName)
-    {
-        ActionType = AddToActionType(ActionType, 0);
-        Behaviours = AddToActionType(Behaviours, behaviour);
-        ObjectNames = AddToObjectNames(ObjectNames, functionName);
-        Value = AddToValue(Value, .0f);
-        IsSynced = AddToBool(IsSynced, false);
-        TransferOfOwnership = AddToBool(TransferOfOwnership, false);
-    }
-    
-    public void AddValue(UdonSharpBehaviour behaviour, string VariableName, object value)
-    {
-        ActionType = AddToActionType(ActionType, 1);
-        Behaviours = AddToActionType(Behaviours, behaviour);
-        ObjectNames = AddToObjectNames(ObjectNames, VariableName);
-        Value = AddToValue(Value, value);
-        IsSynced = AddToBool(IsSynced, false);
-        TransferOfOwnership = AddToBool(TransferOfOwnership, false);
-    }
-
-    public void IgnoreEvent(int index)
-    {
-        Behaviours[index] = null;
+        public void IgnoreEvent(int index)
+        {
+            Behaviours[index] = null;
+        }
     }
 }
